@@ -253,7 +253,7 @@ class MainWindow(QWidget):
         :return:
         """
         if check_startup():
-            remove_startup()
+            remove_startup(self.logging)
             self.startup_button.setText("Add autostart")
         else:
             # get the current location and 'start.bat' file
