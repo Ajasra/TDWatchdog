@@ -1,0 +1,10 @@
+ {
+   "name": "project1",
+   "app": "C:\\Program Files\\Derivative\\TouchDesigner.2023.11340\\bin\\TouchDesigner.exe",
+   "arguments": ["T:\\000_GIT\\03_TD\\Watchdog\\TD\\test.toe"],
+   "ports": [8000, 8005],
+   "ping_time": 10,
+   "wait": 20,
+   "reboot": 3,
+   "autostart": true
+ }
