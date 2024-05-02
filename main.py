@@ -10,8 +10,8 @@ import psutil
 import select
 from PySide6.QtGui import QIcon, QAction
 from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QTextEdit, QSystemTrayIcon, \
-    QMenu
-from PySide6.QtCore import Signal, QObject
+    QMenu, QLabel
+from PySide6.QtCore import Signal, QObject, Qt
 
 from Logs.logs import WdLogs
 from Settings.Settings import WdSettings
@@ -122,6 +122,13 @@ class MainWindow(QWidget):
         self.text_display = QTextEdit("")
         main_layout.addWidget(self.text_display)
         self.text_display.setReadOnly(True)
+
+        # add label at the bottom
+        label = QLabel("Author: vasily@sokaris.com")
+        label.setAlignment(
+            Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter
+        )
+        main_layout.addWidget(label)
 
         # Set the main layout
         self.setLayout(main_layout)
