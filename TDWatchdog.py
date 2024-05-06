@@ -10,7 +10,7 @@ import psutil
 import select
 from PySide6.QtGui import QIcon, QAction
 from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QTextEdit, QSystemTrayIcon, \
-    QMenu, QLabel
+    QMenu, QLabel, QCheckBox
 from PySide6.QtCore import Signal, QObject, Qt
 
 from Logs.logs import WdLogs
@@ -21,6 +21,7 @@ class Communicate(QObject):
     # This class will facilitate thread-safe signals
     received_signal = Signal(str)
     timeout_signal = Signal()
+    stop_signal = Signal(bool)
 
 
 def find_process(app_name, args=None):
@@ -67,6 +68,7 @@ class MainWindow(QWidget):
     settings = None
     kill_button = None
     startup_button = None
+    debug = False
 
     def __init__(self):
         super().__init__()
@@ -74,11 +76,12 @@ class MainWindow(QWidget):
         self.process = None
         self.pid = None
         self.ping_failures = 0
-        self.running = True
+        self.running = False  # Flag to indicate if the app should continue running
 
         self.comm = Communicate()
         self.comm.received_signal.connect(self.received)
         self.comm.timeout_signal.connect(self.timeout)
+        self.comm.stop_signal.connect(self.stop_received)
 
         self.init_ui()
 
@@ -106,7 +109,9 @@ class MainWindow(QWidget):
         buttons_layout.addWidget(button_start)
         buttons_layout.addWidget(button_kill)
         buttons_layout.addWidget(button_autostart)
-        # buttons_layout.addWidget(button_close)
+        ch_debug = QCheckBox("Debug")
+        buttons_layout.addWidget(ch_debug)
+        ch_debug.stateChanged.connect(self.update_debug)
 
         self.kill_button.setEnabled(False)
 
@@ -136,6 +141,14 @@ class MainWindow(QWidget):
         if check_startup():
             self.startup_button.setText("Remove autostart")
 
+    def update_debug(self, state):
+        if state == 2:
+            state = True
+        else:
+            state = False
+        self.debug = state
+        self.logging.add_only_message(f"Debug: {state}")
+
     def start_process(self):
         """
         Start the process
@@ -150,7 +163,6 @@ class MainWindow(QWidget):
                 if self.process is None:
                     self.logging.add_log("Error starting the process")
                     return
-                self.running = True
                 self.start_pinging()
                 self.logging.add_log("Process started: " + temp_set['app'] + " " + " ".join(temp_set['arguments']))
                 self.pid = self.process.pid
@@ -166,6 +178,7 @@ class MainWindow(QWidget):
         Kill the process
         :return:
         """
+        self.stop_received(False)
         temp_set = self.settings.get_settings()
         self.logging.add_log("Killing the process: " + temp_set['app'])
         try:
@@ -176,7 +189,6 @@ class MainWindow(QWidget):
         self.process = None
         self.pid = None
         self.kill_button.setEnabled(False)
-        self.running = False
 
     def received(self, message):
         """
@@ -184,8 +196,14 @@ class MainWindow(QWidget):
         :param message:
         :return:
         """
-        # self.logging.add_only_message("Received message: " + message)
+        if self.debug:
+            self.logging.add_only_message("Received message: " + message)
         self.ping_failures = 0
+
+    def stop_received(self, stop):
+        self.running = stop
+        if self.debug:
+            self.logging.add_only_message("Stop received : " + str(stop))
 
     def timeout(self):
         """
@@ -195,6 +213,7 @@ class MainWindow(QWidget):
         if not self.running:
             # If the process is not running ignore the timeout
             return
+        self.stop_received(False)
         self.ping_failures += 1
         self.logging.add_log(f"Timeout, failures: {self.ping_failures}")
         reboot_value = self.settings.get_settings()['reboot']
@@ -218,6 +237,8 @@ class MainWindow(QWidget):
             with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
                 s.bind(('localhost', temp_set['ports'][1]))
                 s.setblocking(0)
+                self.comm.stop_signal.emit(True)
+                time.sleep(2)
                 while instance.running:
                     ready = select.select([s], [], [], temp_set['ping_time'])
                     if ready[0]:
@@ -227,7 +248,7 @@ class MainWindow(QWidget):
                         time.sleep(2)
                     else:
                         self.comm.timeout_signal.emit()
-                        time.sleep(2)
+                        time.sleep(1)
                 s.close()
 
         # Start the listening thread
@@ -249,7 +270,7 @@ class MainWindow(QWidget):
         Close the application
         :return:
         """
-        self.running = False
+        self.stop_received(False)
         if self.process is not None:
             self.process.terminate()
         self.close()
@@ -266,7 +287,7 @@ class MainWindow(QWidget):
             # get the current location and 'start.bat' file
             app_path = os.path.abspath(sys.argv[0])
             app_name = os.path.basename(app_path)
-            app_path = app_path.replace(app_name, "start.bat")
+            app_path = app_path.replace(app_name, "TDWatchdog.exe")
 
             startup_folder = winshell.startup()
             shortcut_path = os.path.join(startup_folder, f"watchdog.lnk")
