@@ -1,0 +1,1 @@
+pyinstaller --onefile --windowed --icon=Data\icon.ico  TDWatchdog.py

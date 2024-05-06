@@ -9,7 +9,7 @@ python -m venv venv
 call venv\Scripts\activate.bat
 
 :: Install required libraries (replace with your own list of libraries)
-pip install winshell pyside6 pywin32 psutil
+pip install winshell pyside6 pywin32 psutil pyinstaller
 
 :: Deactivate the virtual environment
 deactivate
